@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y \
     libkrb5-3 \
     zlib1g \
     v4l-utils \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install .NET 10 runtime for ARM64
@@ -40,11 +41,20 @@ RUN wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh \
     && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
     && rm dotnet-install.sh
 
-# Install Raspberry Pi camera tools
+# Install Raspberry Pi camera tools with all dependencies
 RUN wget -qO - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | apt-key add - \
     && echo "deb https://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list \
     && apt-get update \
-    && apt-get install -y rpicam-apps \
+    && apt-get install -y \
+        libcamera0.3 \
+        libcamera-ipa \
+        libcamera-tools \
+        rpicam-apps-core \
+        rpicam-apps-encoder \
+        rpicam-apps-opencv-postprocess \
+        rpicam-apps-preview \
+        rpicam-apps \
+    || apt-get install -y --fix-broken \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy published application
