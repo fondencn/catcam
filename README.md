@@ -1,5 +1,7 @@
 # CatCam
 
+[![Build and Test](https://github.com/fondencn/catcam/actions/workflows/build.yml/badge.svg)](https://github.com/fondencn/catcam/actions/workflows/build.yml)
+
 Watch your Cats via Raspberry Pi Cam
 
 A secure ASP.NET Core Razor Pages application for viewing a Raspberry Pi camera stream with a beautiful Fluent 2 design interface.
@@ -12,6 +14,7 @@ A secure ASP.NET Core Razor Pages application for viewing a Raspberry Pi camera 
 - 🐳 **Docker support** - Easy deployment with Docker and Docker Compose
 - 🔒 **HTTPS in production** - Automated SSL/TLS certificates with Let's Encrypt
 - 🚀 **Simple development setup** - HTTP for local development
+- ✅ **CI/CD Pipeline** - Automated builds and tests with GitHub Actions
 
 ## Prerequisites
 
@@ -147,10 +150,37 @@ docker-compose up -d --build
 docker-compose logs letsencrypt-companion
 ```
 
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment.
+
+### Build Workflow
+
+The `.github/workflows/build.yml` workflow automatically runs on:
+- Every push to the `main` branch
+- Every pull request targeting the `main` branch
+
+The pipeline includes:
+1. **Build Job**: Compiles the .NET project in Release configuration
+2. **Test Job**: Runs all unit tests (when available)
+3. **Docker Build Job**: Builds and tests the Docker image
+
+### Branch Protection
+
+The `main` branch is protected with the following rules:
+- ✅ Pull requests required before merging
+- ✅ Status checks must pass (build and docker-build)
+- ✅ Branches must be up-to-date before merging
+
+See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for detailed configuration instructions.
+
 ## Project Structure
 
 ```
 catcam/
+├── .github/
+│   └── workflows/
+│       └── build.yml               # CI/CD pipeline
 ├── CatCam.sln                      # Visual Studio solution
 ├── CatCam.Web/                     # ASP.NET Core Razor Pages project
 │   ├── Pages/
@@ -164,6 +194,7 @@ catcam/
 ├── docker-compose.yml              # Production deployment (HTTPS)
 ├── docker-compose.dev.yml          # Development deployment (HTTP)
 ├── .env.example                    # Environment variables template
+├── BRANCH_PROTECTION.md            # Branch protection guide
 └── README.md
 ```
 
