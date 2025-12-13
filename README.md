@@ -172,32 +172,6 @@ The `main` branch is protected with the following rules:
 - ✅ Status checks must pass (build and docker-build)
 - ✅ Branches must be up-to-date before merging
 
-See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for detailed configuration instructions.
-
-## Project Structure
-
-```
-catcam/
-├── .github/
-│   └── workflows/
-│       └── build.yml               # CI/CD pipeline
-├── CatCam.sln                      # Visual Studio solution
-├── CatCam.Web/                     # ASP.NET Core Razor Pages project
-│   ├── Pages/
-│   │   ├── Login.cshtml            # Login page with Fluent 2 design
-│   │   ├── Webcam.cshtml           # Webcam stream page
-│   │   └── ...
-│   ├── Program.cs                  # Application configuration
-│   ├── appsettings.json            # Application settings
-│   └── CatCam.Web.csproj
-├── Dockerfile                      # Multi-stage Docker build
-├── docker-compose.yml              # Production deployment (HTTPS)
-├── docker-compose.dev.yml          # Development deployment (HTTP)
-├── .env.example                    # Environment variables template
-├── BRANCH_PROTECTION.md            # Branch protection guide
-└── README.md
-```
-
 ## Security Notes
 
 - Always use strong passwords in production
