@@ -10,18 +10,16 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - Authentication__Password=${CATCAM_PASSWORD}
     ports:
-      - "5000:8080"
+      - "8080:8080"
     networks:
       - catcam-network
     volumes:
       # For accessing Raspberry Pi camera (if using direct access)
       - /dev/video0:/dev/video0
-      # Mount source code for development (optional)
-      - ./CatCam.Web:/app
-    devices:
+    #devices:
       # Grant access to video devices
-      - /dev/video0:/dev/video0
-    privileged: false
+      #- /dev/video0:/dev/video0
+    #privileged: false
 
 networks:
   catcam-network:
