@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddControllers();
 
 // Add authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -17,6 +19,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 builder.Services.AddAuthorization();
+
+// Configure data protection to persist keys
+var keysPath = Path.Combine("/app", "keys");
+Directory.CreateDirectory(keysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("CatCam");
 
 // Configure forwarded headers for reverse proxy (nginx-proxy with Let's Encrypt)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -39,18 +48,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Only use HTTPS redirection in development (in production, nginx-proxy handles this)
-if (app.Environment.IsDevelopment())
-{
-    // In development, we use HTTP only
-}
-
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+app.MapControllers();
 app.MapRazorPages()
    .WithStaticAssets();
 

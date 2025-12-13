@@ -17,9 +17,14 @@ services:
     volumes:
       # For accessing Raspberry Pi camera (if using direct access)
       - /dev/video0:/dev/video0
+      # Persist data protection keys
+      - catcam-keys:/app/keys
     devices:
       # Grant access to video devices
       - /dev/video0:/dev/video0
+    group_add:
+      # Add container user to video group (GID 44 is typically video group on Raspberry Pi)
+      - video
     privileged: false
 
   nginx-proxy:
@@ -65,3 +70,4 @@ volumes:
   nginx-vhost:
   nginx-html:
   acme-state:
+  catcam-keys:

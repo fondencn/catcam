@@ -3,139 +3,155 @@
 @{
     ViewData["Title"] = "Webcam Stream";
 }
-@section Head { }
 
-@* Scripts are loaded globally via _Layout *@
-    <header class="header">
-        <div class="header-left">
-            <div class="logo">
-                <fluent-icon icon="video-camera" size="32"></fluent-icon>
-                <span>CatCam</span>
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <i class="fas fa-video" style="font-size: 32px;"></i>
+            <span>CatCam</span>
+        </div>
+    </div>
+    <div class="user-info">
+        <i class="fas fa-user"></i>
+        <span>@User.Identity?.Name</span>
+        <button class="btn btn-link logout-button" onclick="window.location.href='/Logout'">
+            <i class="fas fa-sign-out-alt"></i>
+            Logout
+        </button>
+    </div>
+</header>
+
+<main class="main-content">
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-indicator"></div>
+            <i class="fas fa-eye"></i>
+            <strong>Live Stream Active</strong>
+        </div>
+        <div class="status-item">
+            <i class="fas fa-camera"></i>
+            <span>Raspberry Pi Camera</span>
+        </div>
+        <div class="status-item">
+            <i class="fas fa-clock"></i>
+            <span id="current-time"></span>
+        </div>
+    </div>
+
+    <div class="video-container">
+        <div class="video-header">
+            <div class="video-title">
+                <i class="fas fa-video"></i>
+                Live Camera Feed
+            </div>
+            <div class="video-controls">
+                <button class="btn btn-sm btn-light" id="diagnostics-btn" title="Diagnostics">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+                <button class="btn btn-sm btn-light" id="fullscreen-btn" title="Fullscreen">
+                    <i class="fas fa-expand"></i>
+                </button>
+                <button class="btn btn-sm btn-light" id="refresh-btn" title="Refresh">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
             </div>
         </div>
-        <div class="user-info">
-            <fluent-icon icon="person"></fluent-icon>
-            <span>@User.Identity?.Name</span>
-            <fluent-button appearance="lightweight" class="logout-button" onclick="window.location.href='/Logout'">
-                <fluent-icon slot="start" icon="sign-out"></fluent-icon>
-                Logout
-            </fluent-button>
+        <div class="video-wrapper" id="video-wrapper">
+            <img src="/api/camera/stream" alt="Live Camera Feed" />
         </div>
-    </header>
+    </div>
 
-    <main class="main-content">
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-indicator"></div>
-                <fluent-icon icon="eye"></fluent-icon>
-                <strong>Live Stream Active</strong>
+    <div class="info-cards">
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="fas fa-camera"></i>
+                <div class="info-card-title">Camera Setup</div>
             </div>
-            <div class="status-item">
-                <fluent-icon icon="camera"></fluent-icon>
-                <span>Raspberry Pi Camera</span>
-            </div>
-            <div class="status-item">
-                <fluent-icon icon="clock"></fluent-icon>
-                <span id="current-time"></span>
+            <div class="info-card-content">
+                Configure your Raspberry Pi camera module. The stream endpoint is <code>/api/camera/stream</code> which should be implemented to serve the camera feed.
             </div>
         </div>
-
-        <div class="video-container">
-            <div class="video-header">
-                <div class="video-title">
-                    <fluent-icon icon="video"></fluent-icon>
-                    Live Camera Feed
-                </div>
-                <div class="video-controls">
-                    <fluent-button appearance="stealth" id="fullscreen-btn" title="Fullscreen">
-                        <fluent-icon icon="full-screen-maximize"></fluent-icon>
-                    </fluent-button>
-                    <fluent-button appearance="stealth" id="refresh-btn" title="Refresh">
-                        <fluent-icon icon="arrow-clockwise"></fluent-icon>
-                    </fluent-button>
-                </div>
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="fas fa-shield-alt"></i>
+                <div class="info-card-title">Secure Access</div>
             </div>
-            <div class="video-wrapper" id="video-wrapper">
-                <div class="video-placeholder">
-                    <fluent-icon icon="video-off"></fluent-icon>
-                    <p><strong>Camera stream will appear here</strong></p>
-                    <p style="margin-top: 8px;">Connect your Raspberry Pi camera to start streaming</p>
-                    <p style="margin-top: 16px; font-size: 12px;">Stream URL: /api/camera/stream</p>
-                </div>
-                <!-- 
-                    To enable actual streaming, replace the placeholder with:
-                    <img id="camera-stream" src="/api/camera/stream" alt="Camera Stream" />
-                    or use an appropriate video streaming element based on your camera setup
-                -->
+            <div class="info-card-content">
+                This stream is protected by authentication. Configure your password in <code>appsettings.json</code> under Authentication:Password.
             </div>
         </div>
+    </div>
+</main>
 
-        <div class="info-cards">
-            <div class="info-card">
-                <div class="info-card-header">
-                    <fluent-icon icon="camera"></fluent-icon>
-                    <div class="info-card-title">Camera Setup</div>
-                </div>
-                <div class="info-card-content">
-                    Configure your Raspberry Pi camera module. The stream endpoint is <code>/api/camera/stream</code> which should be implemented to serve the camera feed.
-                </div>
+<!-- Diagnostics Modal -->
+<div class="modal fade" id="diagnostics-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i>
+                    Camera Diagnostics
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="info-card">
-                <div class="info-card-header">
-                    <fluent-icon icon="settings"></fluent-icon>
-                    <div class="info-card-title">Stream Settings</div>
-                </div>
-                <div class="info-card-content">
-                    Adjust camera settings, resolution, and frame rate through your Raspberry Pi camera configuration. Common formats: MJPEG, H.264.
-                </div>
+            <div class="modal-body">
+                <pre id="diagnostics-content" style="background: #f5f5f5; padding: 16px; border-radius: 8px; max-height: 60vh; overflow-y: auto; font-size: 12px; line-height: 1.5; margin: 0;">Loading diagnostics...</pre>
             </div>
-            <div class="info-card">
-                <div class="info-card-header">
-                    <fluent-icon icon="shield-checkmark"></fluent-icon>
-                    <div class="info-card-title">Secure Access</div>
-                </div>
-                <div class="info-card-content">
-                    This stream is protected by authentication. Configure your password in <code>appsettings.json</code> under Authentication:Password.
-                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
-    </main>
+    </div>
+</div>
 
-    <script>
-        // Update current time
-        function updateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit', 
-                second: '2-digit' 
-            });
-            document.getElementById('current-time').textContent = timeString;
-        }
+<script>
+    // Update current time
+    function updateTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('de-DE', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        });
+        document.getElementById('current-time').textContent = timeString;
+    }
+    
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Diagnostics functionality
+    document.getElementById('diagnostics-btn').addEventListener('click', async () => {
+        const diagnosticsContent = document.getElementById('diagnostics-content');
+        diagnosticsContent.textContent = 'Loading diagnostics...';
         
-        updateTime();
-        setInterval(updateTime, 1000);
+        // Show modal using Bootstrap's data API
+        const modalElement = document.getElementById('diagnostics-modal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modal.show();
+        
+        try {
+            const response = await fetch('/api/camera/diagnostics');
+            const text = await response.text();
+            diagnosticsContent.textContent = text;
+        } catch (error) {
+            diagnosticsContent.textContent = `Error loading diagnostics:\n${error.message}`;
+        }
+    });
 
-        // Fullscreen functionality
-        document.getElementById('fullscreen-btn').addEventListener('click', () => {
-            const wrapper = document.getElementById('video-wrapper');
-            if (wrapper.requestFullscreen) {
-                wrapper.requestFullscreen();
-            } else if (wrapper.webkitRequestFullscreen) {
-                wrapper.webkitRequestFullscreen();
-            } else if (wrapper.msRequestFullscreen) {
-                wrapper.msRequestFullscreen();
-            }
-        });
+    // Fullscreen functionality
+    document.getElementById('fullscreen-btn').addEventListener('click', () => {
+        const wrapper = document.getElementById('video-wrapper');
+        if (wrapper.requestFullscreen) {
+            wrapper.requestFullscreen();
+        } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
+        } else if (wrapper.msRequestFullscreen) {
+            wrapper.msRequestFullscreen();
+        }
+    });
 
-        // Refresh functionality
-        document.getElementById('refresh-btn').addEventListener('click', () => {
-            // If you have an actual image stream, refresh it
-            const stream = document.getElementById('camera-stream');
-            if (stream) {
-                stream.src = stream.src.split('?')[0] + '?t=' + new Date().getTime();
-            } else {
-                location.reload();
-            }
-        });
-    </script>
+    // Refresh functionality
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+        location.reload();
+    });
+</script>
