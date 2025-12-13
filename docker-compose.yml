@@ -1,0 +1,69 @@
+services:
+  catcam-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catcam-web
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - Authentication__Password=${CATCAM_PASSWORD:-catcam123}
+      # Virtual host configuration for nginx-proxy
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - VIRTUAL_PORT=8080
+      - LETSENCRYPT_HOST=${LETSENCRYPT_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    networks:
+      - catcam-network
+    volumes:
+      # For accessing Raspberry Pi camera (if using direct access)
+      - /dev/video0:/dev/video0
+    devices:
+      # Grant access to video devices
+      - /dev/video0:/dev/video0
+    privileged: false
+
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs:ro
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+    networks:
+      - catcam-network
+    labels:
+      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy"
+
+  letsencrypt-companion:
+    image: nginxproxy/acme-companion:latest
+    container_name: letsencrypt-companion
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs:rw
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+      - acme-state:/etc/acme.sh
+    environment:
+      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
+    networks:
+      - catcam-network
+    depends_on:
+      - nginx-proxy
+
+networks:
+  catcam-network:
+    driver: bridge
+
+volumes:
+  nginx-certs:
+  nginx-vhost:
+  nginx-html:
+  acme-state:
