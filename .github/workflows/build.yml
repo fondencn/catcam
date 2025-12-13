@@ -43,7 +43,8 @@ jobs:
       
     - name: Test Docker image
       run: |
-        docker run -d --name catcam-test -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development -e Authentication__Password=test123 catcam:${{ github.sha }}
+        PASSWORD=$(openssl rand -base64 32)
+        docker run -d --name catcam-test -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development -e Authentication__Password="$PASSWORD" catcam:${{ github.sha }}
         sleep 10
         curl -f http://localhost:8080/ || exit 1
         docker stop catcam-test
