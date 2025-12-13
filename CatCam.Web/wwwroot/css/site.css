@@ -21,6 +21,103 @@ body {
   margin-bottom: 60px;
 }
 
+/* CatCam custom styles moved from pages */
+:root {
+  --background-color: #fafafa;
+  --card-background: #ffffff;
+  --header-height: 60px;
+}
+
+/* Login page */
+.login-page {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-container {
+  background: var(--card-background);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+  margin: 20px;
+}
+
+.logo-container { text-align: center; margin-bottom: 30px; }
+.logo-icon { font-size: 64px; margin-bottom: 10px; }
+.login-container h1 { text-align: center; color: #333; margin: 0 0 10px 0; font-size: 28px; font-weight: 600; }
+.subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+.form-field { margin-bottom: 24px; }
+.error-message { color: #d13438; font-size: 14px; margin-top: 10px; text-align: center; }
+.info-text { color: #666; font-size: 12px; margin-top: 20px; text-align: center; }
+
+/* Webcam page */
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0 24px;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 600; }
+.user-info { display: flex; align-items: center; gap: 12px; }
+.logout-button { --neutral-fill-rest: rgba(255, 255, 255, 0.1); --neutral-fill-hover: rgba(255, 255, 255, 0.2); }
+
+.main-content {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.status-bar {
+  background: var(--card-background);
+  border-radius: 8px;
+  padding: 16px 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.status-item { display: flex; align-items: center; gap: 8px; color: #333; }
+.status-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #10b981; animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.video-container { background: var(--card-background); border-radius: 12px; padding: 24px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); flex: 1; display: flex; flex-direction: column; }
+.video-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; }
+.video-title { font-size: 20px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 12px; }
+.video-controls { display: flex; gap: 8px; }
+.video-wrapper { flex: 1; background: #000; border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 400px; position: relative; overflow: hidden; }
+.video-placeholder { text-align: center; color: #999; padding: 40px; }
+.video-placeholder fluent-icon { font-size: 64px; margin-bottom: 16px; }
+video, img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+
+.info-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.info-card { background: var(--card-background); border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+.info-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; color: #667eea; }
+.info-card-title { font-weight: 600; font-size: 16px; }
+.info-card-content { color: #666; font-size: 14px; line-height: 1.5; }
+
+@media (max-width: 768px) {
+  .header { padding: 0 16px; }
+  .main-content { padding: 16px; }
+  .status-bar { flex-direction: column; align-items: flex-start; }
+  .video-container { padding: 16px; }
+}
+
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
   color: var(--bs-secondary-color);
   text-align: end;
