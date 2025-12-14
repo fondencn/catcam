@@ -10,7 +10,7 @@ namespace CatCam.Web.Controllers;
 public class CameraController : ControllerBase
 {
     private readonly ILogger<CameraController> _logger;
-    private const string CameraDevice = "/dev/video0";
+    //private const string CameraDevice = "/dev/video0";
 
     public CameraController(ILogger<CameraController> logger)
     {
@@ -25,10 +25,66 @@ public class CameraController : ControllerBase
         diagnostics.AppendLine($"OS: {RuntimeInformation.OSDescription}");
         diagnostics.AppendLine($"Architecture: {RuntimeInformation.OSArchitecture}");
         diagnostics.AppendLine($"Is Linux: {RuntimeInformation.IsOSPlatform(OSPlatform.Linux)}");
-        diagnostics.AppendLine($"Camera device exists: {System.IO.File.Exists(CameraDevice)}");
+        //diagnostics.AppendLine($"Camera device exists: {System.IO.File.Exists(CameraDevice)}");
         
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
+            // Check current user and groups
+            try
+            {
+                var idInfo = new ProcessStartInfo
+                {
+                    FileName = "id",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = Process.Start(idInfo);
+                if (process != null)
+                {
+                    var output = await process.StandardOutput.ReadToEndAsync();
+                    await process.WaitForExitAsync();
+                    diagnostics.AppendLine($"\nCurrent user and groups: {output.Trim()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                diagnostics.AppendLine($"\nError getting user info: {ex.Message}");
+            }
+            
+            // Check device permissions
+            diagnostics.AppendLine("\nDevice permissions:");
+            var devicesToCheck = new[] { "/dev/video0", "/dev/v4l-subdev0", "/dev/v4l-subdev1", "/dev/media0", "/dev/dma_heap", "/dev/vchiq", "/dev/vcio" };
+            foreach (var device in devicesToCheck)
+            {
+                try
+                {
+                    var lsInfo = new ProcessStartInfo
+                    {
+                        FileName = "ls",
+                        Arguments = $"-la {device}",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var process = Process.Start(lsInfo);
+                    if (process != null)
+                    {
+                        var output = await process.StandardOutput.ReadToEndAsync();
+                        await process.WaitForExitAsync();
+                        diagnostics.AppendLine($"  {output.Trim()}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    diagnostics.AppendLine($"  {device}: Error - {ex.Message}");
+                }
+            }
+            
             // Check for available video devices
             diagnostics.AppendLine("\nChecking /dev/video* devices:");
             var devDir = new DirectoryInfo("/dev");
@@ -41,66 +97,202 @@ public class CameraController : ControllerBase
                 }
             }
             
-            // Test v4l2-ctl to get camera info
+            // Check for DMA heap and GPU devices (required for rpicam)
+            diagnostics.AppendLine("\nChecking Raspberry Pi hardware access:");
+            diagnostics.AppendLine($"  /dev/dma_heap: {(Directory.Exists("/dev/dma_heap") ? "Found" : "Not found")}");
+            diagnostics.AppendLine($"  /dev/vchiq: {(System.IO.File.Exists("/dev/vchiq") ? "Found" : "Not found")}");
+            diagnostics.AppendLine($"  /dev/vcio: {(System.IO.File.Exists("/dev/vcio") ? "Found" : "Not found")}");
+            
+            // Test rpicam-hello to list cameras
             try
             {
-                var v4lInfo = new ProcessStartInfo
+                var rpicamTest = new ProcessStartInfo
                 {
-                    FileName = "v4l2-ctl",
-                    Arguments = $"--device={CameraDevice} --list-formats-ext",
+                    FileName = "rpicam-hello",
+                    Arguments = "--list-cameras",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(v4lInfo);
+                using var process = Process.Start(rpicamTest);
                 if (process != null)
                 {
                     var output = await process.StandardOutput.ReadToEndAsync();
                     var error = await process.StandardError.ReadToEndAsync();
                     await process.WaitForExitAsync();
                     
-                    diagnostics.AppendLine("\nv4l2-ctl output:");
-                    diagnostics.AppendLine(output);
+                    diagnostics.AppendLine("\nrpicam-hello --list-cameras:");
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        diagnostics.AppendLine(output);
+                    }
                     if (!string.IsNullOrEmpty(error))
                     {
-                        diagnostics.AppendLine("\nv4l2-ctl errors:");
+                        diagnostics.AppendLine("Errors:");
                         diagnostics.AppendLine(error);
                     }
                 }
             }
             catch (Exception ex)
             {
-                diagnostics.AppendLine($"\nError running v4l2-ctl: {ex.Message}");
+                diagnostics.AppendLine($"\nError running rpicam-hello: {ex.Message}");
             }
 
-            // Test ffmpeg availability
+            // Check video device names in /sys/class/video4linux
+            diagnostics.AppendLine("\nChecking video device names:");
+            var v4lDir = new DirectoryInfo("/sys/class/video4linux");
+            if (v4lDir.Exists)
+            {
+                foreach (var device in v4lDir.GetDirectories())
+                {
+                    var namePath = Path.Combine(device.FullName, "name");
+                    if (System.IO.File.Exists(namePath))
+                    {
+                        var name = await System.IO.File.ReadAllTextAsync(namePath);
+                        diagnostics.AppendLine($"  {device.Name}: {name.Trim()}");
+                    }
+                }
+            }
+            
+            // Test rpicam-vid with --list-cameras
             try
             {
-                var ffmpegInfo = new ProcessStartInfo
+                var rpicamListInfo = new ProcessStartInfo
                 {
-                    FileName = "ffmpeg",
-                    Arguments = "-version",
+                    FileName = "rpicam-vid",
+                    Arguments = "--list-cameras",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(ffmpegInfo);
+                using var process = Process.Start(rpicamListInfo);
                 if (process != null)
                 {
                     var output = await process.StandardOutput.ReadToEndAsync();
+                    var error = await process.StandardError.ReadToEndAsync();
                     await process.WaitForExitAsync();
-                    var firstLine = output.Split('\n')[0];
-                    diagnostics.AppendLine($"\nffmpeg: {firstLine}");
+                    
+                    diagnostics.AppendLine("\nrpicam-vid --list-cameras:");
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        diagnostics.AppendLine(output);
+                    }
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        diagnostics.AppendLine("Errors:");
+                        diagnostics.AppendLine(error);
+                    }
+                    diagnostics.AppendLine($"Exit Code: {process.ExitCode}");
                 }
             }
             catch (Exception ex)
             {
-                diagnostics.AppendLine($"\nError running ffmpeg: {ex.Message}");
+                diagnostics.AppendLine($"\nError running rpicam-vid --list-cameras: {ex.Message}");
             }
+
+            // Test rpicam-vid version
+            try
+            {
+                var rpicamVidInfo = new ProcessStartInfo
+                {
+                    FileName = "rpicam-vid",
+                    Arguments = "--version",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = Process.Start(rpicamVidInfo);
+                if (process != null)
+                {
+                    var output = await process.StandardOutput.ReadToEndAsync();
+                    var error = await process.StandardError.ReadToEndAsync();
+                    await process.WaitForExitAsync();
+                    diagnostics.AppendLine($"\nrpicam-vid version: {output.Split('\n')[0]}");
+                }
+            }
+            catch (Exception ex)
+            {
+                diagnostics.AppendLine($"\nrpicam-vid: Not found ({ex.Message})");
+            }
+            
+            // Check for media devices (needed for libcamera)
+            diagnostics.AppendLine("\nChecking /dev/media* devices:");
+            var mediaDevices = devDir.GetFiles("media*");
+            if (mediaDevices.Length > 0)
+            {
+                foreach (var device in mediaDevices)
+                {
+                    diagnostics.AppendLine($"  - {device.FullName}");
+                }
+            }
+            else
+            {
+                diagnostics.AppendLine("  No media devices found");
+            }
+            
+            // Check dmesg for camera-related messages
+            try
+            {
+                var dmesgInfo = new ProcessStartInfo
+                {
+                    FileName = "dmesg",
+                    Arguments = "| grep -i -E 'camera|unicam|imx|ov5647' | tail -20",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = Process.Start(dmesgInfo);
+                if (process != null)
+                {
+                    var output = await process.StandardOutput.ReadToEndAsync();
+                    await process.WaitForExitAsync();
+                    
+                    if (!string.IsNullOrEmpty(output))
+                    {
+                        diagnostics.AppendLine("\nRecent camera-related kernel messages:");
+                        diagnostics.AppendLine(output);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                diagnostics.AppendLine($"\nError checking dmesg: {ex.Message}");
+            }
+
+            // // Test ffmpeg availability (kept for reference)
+            // try
+            // {
+            //     var ffmpegInfo = new ProcessStartInfo
+            //     {
+            //         FileName = "ffmpeg",
+            //         Arguments = "-version",
+            //         RedirectStandardOutput = true,
+            //         RedirectStandardError = true,
+            //         UseShellExecute = false,
+            //         CreateNoWindow = true
+            //     };
+
+            //     using var process = Process.Start(ffmpegInfo);
+            //     if (process != null)
+            //     {
+            //         var output = await process.StandardOutput.ReadToEndAsync();
+            //         await process.WaitForExitAsync();
+            //         var firstLine = output.Split('\n')[0];
+            //         diagnostics.AppendLine($"\nffmpeg: {firstLine}");
+            //     }
+            // }
+            // catch (Exception ex)
+            // {
+            //     diagnostics.AppendLine($"\nError running ffmpeg: {ex.Message}");
+            // }
         }
         
         return Content(diagnostics.ToString(), "text/plain");
@@ -109,9 +301,6 @@ public class CameraController : ControllerBase
     [HttpGet("stream")]
     public async Task StreamVideo()
     {
-        Response.ContentType = "multipart/x-mixed-replace; boundary=frame";
-        Response.Headers.CacheControl = "no-cache";
-
         try
         {
             // Check if running on Linux (Raspberry Pi)
@@ -123,83 +312,68 @@ public class CameraController : ControllerBase
                 return;
             }
 
-            // Check if camera device exists
-            if (!System.IO.File.Exists(CameraDevice))
-            {
-                _logger.LogError("Camera device {Device} not found", CameraDevice);
-                Response.StatusCode = 404;
-                await Response.WriteAsync($"Camera device {CameraDevice} not found");
-                return;
-            }
+            _logger.LogInformation("Starting camera stream with rpicam-still in loop mode");
 
-            _logger.LogInformation("Starting camera stream from {Device}", CameraDevice);
+            Response.ContentType = "multipart/x-mixed-replace; boundary=--jpgboundary";
+            Response.Headers.CacheControl = "no-cache";
 
-            // Use rpicam-vid for Raspberry Pi camera streaming
-            var processStartInfo = new ProcessStartInfo
-            {
-                FileName = "rpicam-vid",
-                Arguments = "-t 0 --codec mjpeg --width 640 --height 480 --framerate 15 -o -",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(processStartInfo);
-            if (process == null)
-            {
-                _logger.LogError("Failed to start camera process");
-                Response.StatusCode = 500;
-                await Response.WriteAsync("Failed to start camera stream");
-                return;
-            }
-
-            // Capture stderr for diagnostics
-            _ = Task.Run(async () =>
-            {
-                var error = await process.StandardError.ReadToEndAsync();
-                if (!string.IsNullOrEmpty(error))
-                {
-                    _logger.LogWarning("FFmpeg stderr: {Error}", error);
-                }
-            });
-
-            var stream = process.StandardOutput.BaseStream;
-            var buffer = new byte[4096];
-            var totalBytes = 0;
+            var frameCount = 0;
             
             try
             {
                 while (!HttpContext.RequestAborted.IsCancellationRequested)
                 {
-                    var bytesRead = await stream.ReadAsync(buffer, HttpContext.RequestAborted);
-                    if (bytesRead == 0)
+                    // Capture a single frame
+                    var processStartInfo = new ProcessStartInfo
                     {
-                        _logger.LogWarning("Stream ended, total bytes: {TotalBytes}", totalBytes);
+                        FileName = "rpicam-still",
+                        Arguments = "-t 1 --width 640 --height 480 --quality 80 -e jpg -o -",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var process = Process.Start(processStartInfo);
+                    if (process == null)
+                    {
+                        _logger.LogError("Failed to start rpicam-still process");
                         break;
                     }
 
-                    totalBytes += bytesRead;
-                    await Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead), HttpContext.RequestAborted);
-                    await Response.Body.FlushAsync(HttpContext.RequestAborted);
-                    
-                    if (totalBytes == bytesRead)
+                    var imageData = new MemoryStream();
+                    await process.StandardOutput.BaseStream.CopyToAsync(imageData, HttpContext.RequestAborted);
+                    await process.WaitForExitAsync(HttpContext.RequestAborted);
+
+                    if (imageData.Length > 0)
                     {
-                        _logger.LogInformation("First {Bytes} bytes sent", bytesRead);
+                        imageData.Position = 0;
+                        
+                        // Write MJPEG frame boundary
+                        var boundary = "\r\n--jpgboundary\r\nContent-Type: image/jpeg\r\n"
+                            + $"Content-Length: {imageData.Length}\r\n\r\n";
+                        await Response.WriteAsync(boundary, HttpContext.RequestAborted);
+                        await imageData.CopyToAsync(Response.Body, HttpContext.RequestAborted);
+                        await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                        
+                        frameCount++;
+                        if (frameCount == 1)
+                        {
+                            _logger.LogInformation("First frame sent, size: {Size} bytes", imageData.Length);
+                        }
                     }
+
+                    // Small delay to achieve ~10 fps
+                    await Task.Delay(100, HttpContext.RequestAborted);
                 }
             }
             catch (OperationCanceledException)
             {
-                _logger.LogInformation("Camera stream cancelled by client after {TotalBytes} bytes", totalBytes);
+                _logger.LogInformation("Camera stream cancelled by client after {FrameCount} frames", frameCount);
             }
             finally
             {
-                if (!process.HasExited)
-                {
-                    process.Kill(true);
-                }
-                _logger.LogInformation("Camera stream ended, total bytes sent: {TotalBytes}", totalBytes);
+                _logger.LogInformation("Camera stream ended, total frames sent: {FrameCount}", frameCount);
             }
         }
         catch (Exception ex)
@@ -223,12 +397,12 @@ public class CameraController : ControllerBase
                 return StatusCode(501, "Camera snapshot is only supported on Linux/Raspberry Pi");
             }
 
-            if (!System.IO.File.Exists(CameraDevice))
-            {
-                return NotFound($"Camera device {CameraDevice} not found");
-            }
+            // if (!System.IO.File.Exists(CameraDevice))
+            // {
+            //     return NotFound($"Camera device {CameraDevice} not found");
+            // }
 
-            _logger.LogInformation("Capturing snapshot from {Device}", CameraDevice);
+            //_logger.LogInformation("Capturing snapshot from {Device}", CameraDevice);
 
             // Use rpicam-still for snapshot capture
             var processStartInfo = new ProcessStartInfo

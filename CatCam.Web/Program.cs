@@ -4,6 +4,12 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel to listen on port 8080 by default
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.ListenAnyIP(8080);
+});
+
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
@@ -21,7 +27,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 
 // Configure data protection to persist keys
-var keysPath = Path.Combine("/app", "keys");
+var keysPath = Path.Combine("./app", "keys");
 Directory.CreateDirectory(keysPath);
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keysPath))

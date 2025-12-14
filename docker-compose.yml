@@ -15,17 +15,14 @@ services:
     networks:
       - catcam-network
     volumes:
-      # For accessing Raspberry Pi camera (if using direct access)
-      - /dev/video0:/dev/video0
+      # Full access to all devices (required for rpicam/libcamera)
+      - /dev:/dev
       # Persist data protection keys
       - catcam-keys:/app/keys
-    devices:
-      # Grant access to video devices
-      - /dev/video0:/dev/video0
     group_add:
       # Add container user to video group (GID 44 is typically video group on Raspberry Pi)
       - video
-    privileged: false
+    privileged: true
 
   nginx-proxy:
     image: nginxproxy/nginx-proxy:latest

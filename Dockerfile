@@ -60,12 +60,17 @@ RUN wget -qO - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | apt-
 # Copy published application
 COPY --from=publish /app/publish .
 
-# Create a non-root user and prepare keys directory
+# Create a non-root user
 # Add user to video group for camera access
 RUN useradd -m -s /bin/bash appuser && \
     mkdir -p /app/keys && \
     chown -R appuser:appuser /app && \
     usermod -a -G video appuser
-USER appuser
 
-ENTRYPOINT ["dotnet", "CatCam.Web.dll"]
+# Create entrypoint script to fix volume permissions then switch to appuser
+RUN echo '#!/bin/bash\n\
+chown -R appuser:appuser /app/keys\n\
+exec su appuser -c "dotnet /app/CatCam.Web.dll"' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
