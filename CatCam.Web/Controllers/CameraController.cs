@@ -312,59 +312,82 @@ public class CameraController : ControllerBase
                 return;
             }
 
-            _logger.LogInformation("Starting camera stream with rpicam-still in loop mode");
+            _logger.LogInformation("Starting camera stream with rpicam-vid");
 
-            Response.ContentType = "multipart/x-mixed-replace; boundary=--jpgboundary";
+            Response.ContentType = "multipart/x-mixed-replace; boundary=frame";
             Response.Headers.CacheControl = "no-cache";
+            Response.Headers.Connection = "close";
 
+            // Use rpicam-vid for smooth video streaming
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = "rpicam-vid",
+                Arguments = "-t 0 --codec mjpeg --width 640 --height 480 --framerate 30 --inline -o -",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(processStartInfo);
+            if (process == null)
+            {
+                _logger.LogError("Failed to start rpicam-vid process");
+                Response.StatusCode = 500;
+                await Response.WriteAsync("Failed to start camera stream");
+                return;
+            }
+
+            // Capture stderr for diagnostics
+            _ = Task.Run(async () =>
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                if (!string.IsNullOrEmpty(error))
+                {
+                    _logger.LogWarning("rpicam-vid stderr: {Error}", error);
+                }
+            });
+
+            var stream = process.StandardOutput.BaseStream;
+            var buffer = new List<byte>();
             var frameCount = 0;
             
             try
             {
+                _logger.LogInformation("Parsing MJPEG stream from rpicam-vid");
+                
                 while (!HttpContext.RequestAborted.IsCancellationRequested)
                 {
-                    // Capture a single frame
-                    var processStartInfo = new ProcessStartInfo
+                    var b = stream.ReadByte();
+                    if (b == -1) break;
+                    
+                    buffer.Add((byte)b);
+                    
+                    // Detect JPEG start marker (0xFF 0xD8)
+                    if (buffer.Count >= 2 && buffer[^2] == 0xFF && buffer[^1] == 0xD8 && buffer.Count > 2)
                     {
-                        FileName = "rpicam-still",
-                        Arguments = "-t 1 --width 640 --height 480 --quality 80 -e jpg -o -",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-
-                    using var process = Process.Start(processStartInfo);
-                    if (process == null)
-                    {
-                        _logger.LogError("Failed to start rpicam-still process");
-                        break;
-                    }
-
-                    var imageData = new MemoryStream();
-                    await process.StandardOutput.BaseStream.CopyToAsync(imageData, HttpContext.RequestAborted);
-                    await process.WaitForExitAsync(HttpContext.RequestAborted);
-
-                    if (imageData.Length > 0)
-                    {
-                        imageData.Position = 0;
+                        // Found start of new frame, send previous frame
+                        var frameData = buffer.Take(buffer.Count - 2).ToArray();
+                        buffer.Clear();
+                        buffer.Add(0xFF);
+                        buffer.Add(0xD8);
                         
-                        // Write MJPEG frame boundary
-                        var boundary = "\r\n--jpgboundary\r\nContent-Type: image/jpeg\r\n"
-                            + $"Content-Length: {imageData.Length}\r\n\r\n";
-                        await Response.WriteAsync(boundary, HttpContext.RequestAborted);
-                        await imageData.CopyToAsync(Response.Body, HttpContext.RequestAborted);
-                        await Response.Body.FlushAsync(HttpContext.RequestAborted);
-                        
-                        frameCount++;
-                        if (frameCount == 1)
+                        if (frameData.Length > 100) // Valid frame
                         {
-                            _logger.LogInformation("First frame sent, size: {Size} bytes", imageData.Length);
+                            await Response.WriteAsync("--frame\r\n", HttpContext.RequestAborted);
+                            await Response.WriteAsync("Content-Type: image/jpeg\r\n", HttpContext.RequestAborted);
+                            await Response.WriteAsync($"Content-Length: {frameData.Length}\r\n\r\n", HttpContext.RequestAborted);
+                            await Response.Body.WriteAsync(frameData, HttpContext.RequestAborted);
+                            await Response.WriteAsync("\r\n", HttpContext.RequestAborted);
+                            await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                            
+                            frameCount++;
+                            if (frameCount == 1)
+                            {
+                                _logger.LogInformation("First frame sent, size: {Size} bytes", frameData.Length);
+                            }
                         }
                     }
-
-                    // Small delay to achieve ~10 fps
-                    await Task.Delay(100, HttpContext.RequestAborted);
                 }
             }
             catch (OperationCanceledException)
@@ -373,6 +396,10 @@ public class CameraController : ControllerBase
             }
             finally
             {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                }
                 _logger.LogInformation("Camera stream ended, total frames sent: {FrameCount}", frameCount);
             }
         }
