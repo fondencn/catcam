@@ -108,13 +108,65 @@ Configure the password in one of these ways:
 
 ### Camera Setup
 
-The application expects a camera stream at `/api/camera/stream`. You'll need to implement the camera streaming endpoint or configure your Raspberry Pi to provide the stream.
+The application expects a camera stream at `/api/camera/stream`. The application includes built-in support for Raspberry Pi Camera using `rpicam-vid` and `rpicam-still`.
 
-**Example using Raspberry Pi:**
+**Raspberry Pi Setup:**
 
-1. Install `rpicam-apps` or `motion` on your Raspberry Pi
-2. Configure the camera to stream to a network endpoint
-3. Update the webcam page to point to your camera stream URL
+1. Ensure `rpicam-apps` is installed on your Raspberry Pi (usually pre-installed on Raspberry Pi OS)
+2. Deploy the application natively to your Pi (see Native Deployment section below)
+3. The camera stream will be automatically available at `/api/camera/stream`
+
+### Native Deployment on Raspberry Pi
+
+For best camera performance, deploy the application directly on your Raspberry Pi instead of using Docker:
+
+1. **Build and deploy:**
+   ```bash
+   ./scripts/deploy_native.sh
+   ```
+   
+   This script will:
+   - Build the application for ARM64 with self-contained runtime
+   - Copy files to your Raspberry Pi via SCP
+   - Install and start the systemd service
+
+2. **Manual systemd installation:**
+   ```bash
+   # Copy the systemd service file to the Pi
+   scp scripts/catcam.service pi@192.168.178.57:/home/pi/catcam/
+   
+   # SSH into the Pi
+   ssh pi@192.168.178.57
+   
+   # Install the service
+   sudo cp /home/pi/catcam/catcam.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable catcam
+   sudo systemctl start catcam
+   
+   # Check status
+   sudo systemctl status catcam
+   
+   # View logs
+   sudo journalctl -u catcam -f
+   ```
+
+3. **Service management:**
+   ```bash
+   # Restart service
+   sudo systemctl restart catcam
+   
+   # Stop service
+   sudo systemctl stop catcam
+   
+   # Check status
+   sudo systemctl status catcam
+   
+   # View logs
+   sudo journalctl -u catcam -f
+   ```
+
+The application will run on port 8080 by default.
 
 ## Docker Commands
 
@@ -171,32 +223,6 @@ The `main` branch is protected with the following rules:
 - ✅ Pull requests required before merging
 - ✅ Status checks must pass (build and docker-build)
 - ✅ Branches must be up-to-date before merging
-
-See [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md) for detailed configuration instructions.
-
-## Project Structure
-
-```
-catcam/
-├── .github/
-│   └── workflows/
-│       └── build.yml               # CI/CD pipeline
-├── CatCam.sln                      # Visual Studio solution
-├── CatCam.Web/                     # ASP.NET Core Razor Pages project
-│   ├── Pages/
-│   │   ├── Login.cshtml            # Login page with Fluent 2 design
-│   │   ├── Webcam.cshtml           # Webcam stream page
-│   │   └── ...
-│   ├── Program.cs                  # Application configuration
-│   ├── appsettings.json            # Application settings
-│   └── CatCam.Web.csproj
-├── Dockerfile                      # Multi-stage Docker build
-├── docker-compose.yml              # Production deployment (HTTPS)
-├── docker-compose.dev.yml          # Development deployment (HTTP)
-├── .env.example                    # Environment variables template
-├── BRANCH_PROTECTION.md            # Branch protection guide
-└── README.md
-```
 
 ## Security Notes
 
