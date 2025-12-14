@@ -3,7 +3,8 @@ Description=CatCam Web Application
 After=network.target
 
 [Service]
-Type=notify
+Type=simple
+TimeoutStartSec=30
 WorkingDirectory=/home/pi/catcam
 ExecStart=/home/pi/catcam/CatCam.Web
 Restart=always
